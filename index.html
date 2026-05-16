@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>M-BangkigFlux - Keuangan digital</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <style>
+        /* Mencegah scroll yang tidak perlu di body */
+        body { -webkit-tap-highlight-color: transparent; }
+        /* Hilangkan panah naik-turun pada input number */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans antialiased text-gray-800">
+
+    <div class="max-w-md mx-auto bg-white min-h-screen shadow-2xl flex flex-col relative overflow-hidden">
+
+        <div id="login-page" class="flex flex-col h-screen justify-center px-8 relative">
+            <div class="absolute top-8 left-0 right-0 text-center">
+                <p class="text-[10px] text-gray-400 font-medium tracking-widest uppercase">Supported by Gemini 3.1 Pro</p>
+            </div>
+
+            <div class="text-center mb-10 mt-10">
+                <div class="bg-green-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </div>
+                <h1 class="text-3xl font-extrabold text-green-700 tracking-tight">M-BangkigFlux</h1>
+                <p class="text-gray-500 text-sm mt-1">Keuangan Digital Desa Cerdas</p>
+            </div>
+
+            <div class="space-y-5 bg-white p-6 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-50">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Nama Lengkap Sesuai KTP</label>
+                    <input type="text" id="login-name" placeholder="Contoh: Budi Santoso" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 transition">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Nomor HP (Awalan 08)</label>
+                    <input type="number" id="login-phone" placeholder="Contoh: 08123456789" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 transition">
+                    <p class="text-[10px] text-red-500 mt-1">*Jangan gunakan +62 atau 62. Wajib mulai dari 08.</p>
+                </div>
+                <button onclick="masukAkun()" class="w-full bg-green-600 text-white font-bold py-3.5 rounded-xl hover:bg-green-700 active:bg-green-800 transition duration-200 shadow-lg shadow-green-200 mt-2">Masuk ke Rekening</button>
+            </div>
+
+            <div class="absolute bottom-8 left-0 right-0 text-center">
+                <p class="text-xs text-gray-400 font-semibold">Developed by <span class="text-green-600">CV L.Kastara.Narasi</span></p>
+            </div>
+        </div>
+
+        <div id="main-page" class="hidden flex-1 flex-col h-screen">
+            <div class="bg-gradient-to-br from-green-500 to-green-700 text-white p-6 rounded-b-[2.5rem] shadow-lg relative z-10">
+                <div class="absolute top-4 left-0 right-0 text-center">
+                    <p class="text-[9px] text-green-100 opacity-80 uppercase tracking-widest">Supported by Gemini 3.1 Pro</p>
+                </div>
+                <div class="flex justify-between items-center mb-6 mt-4">
+                    <div>
+                        <p class="text-xs text-green-100 mb-0.5 font-medium">Selamat Datang,</p>
+                        <h2 id="user-name" class="text-lg font-bold truncate w-48">Memuat...</h2>
+                    </div>
+                    <button onclick="keluarAkun()" class="text-[10px] bg-white/20 hover:bg-white/30 backdrop-blur-sm px-3 py-2 rounded-lg font-bold uppercase tracking-wide transition">Keluar</button>
+                </div>
+                <div class="bg-white/10 p-5 rounded-2xl backdrop-blur-md border border-white/20 shadow-inner">
+                    <div class="flex justify-between items-center mb-1">
+                        <p class="text-xs text-green-50 font-medium">Total Saldo Aktif</p>
+                        <p class="text-[10px] bg-green-800/50 px-2 py-1 rounded-md text-white">No. Rek: <span id="user-phone">08...</span></p>
+                    </div>
+                    <h3 id="user-saldo" class="text-3xl font-black tracking-tight mt-1">Rp 0</h3>
+                </div>
+            </div>
+
+            <div class="p-6 space-y-5 flex-1 overflow-y-auto pb-24 bg-gray-50">
+                
+                <div class="bg-white p-5 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="bg-green-100 p-2 rounded-lg">
+                            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-gray-800 text-sm">Top Up Mandiri</h4>
+                            <p class="text-[10px] text-gray-400">Limit Rp 30.000/hari (Reset tiap malam)</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <input type="number" id="topup-amount" placeholder="Nominal Rp" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-sm font-semibold text-gray-700">
+                        <button onclick="prosesTopUp()" class="bg-green-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-green-700 transition whitespace-nowrap shadow-md">Isi Saldo</button>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="bg-blue-100 p-2 rounded-lg">
+                            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-gray-800 text-sm">Transfer Antar HP</h4>
+                            <p class="text-[10px] text-gray-400">Limit Rp 80.000/hari (Otomatis potong saldo)</p>
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <input type="number" id="tf-target" placeholder="Nomor HP Tujuan (08...)" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-sm font-semibold text-gray-700">
+                        <input type="number" id="tf-amount" placeholder="Nominal Transfer Rp" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-sm font-semibold text-gray-700">
+                        <button onclick="prosesTransfer()" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold text-sm hover:bg-blue-700 transition shadow-md">Kirim Uang Sekarang</button>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100">
+                    <h4 class="font-bold text-gray-800 text-sm mb-4 flex items-center gap-2">
+                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        Mutasi Rekening Desa
+                    </h4>
+                    <div id="histori-list" class="space-y-3 max-h-56 overflow-y-auto pr-2">
+                        <p class="text-xs text-gray-400 text-center py-6">Memuat histori...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-100 p-3 text-center z-20">
+                <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">M-BangkigFlux &copy; 2026 CV L.Kastara.Narasi</p>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // ========================================================================
+        // 🔴🔴🔴 PASTE KODE FIREBASE KALIAN DARI LAYAR LAPTOP DI BAWAH INI 🔴🔴🔴
+        // Blok const firebaseConfig ini diganti semua dengan hasil copy-an kalian
+        // ========================================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyCBcyLavejYoWE7cWQtrdqHlVqx8EzO_cM",
+            authDomain: "m-bangkigflux.firebaseapp.com",
+            databaseURL: "https://m-bangkigflux-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "m-bangkigflux",
+            storageBucket: "m-bangkigflux.firebasestorage.app",
+            messagingSenderId: "573937654374",
+            appId: "1:573937654374:web:c5e73d7db062e946772ba7",
+            measurementId: "G-PFBXLM1PFN"
+        };
+        // ========================================================================
+
+        // Inisialisasi Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let currentUser = null;
+
+        // Fungsi Format Rupiah
+        function formatRupiah(angka) {
+            return "Rp " + parseInt(angka).toLocaleString('id-ID');
+        }
+
+        // Fungsi Dapatkan Tanggal Hari Ini (Untuk Reset Limit)
+        function getTanggalHariIni() {
+            const d = new Date();
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        }
+
+        // Pengecekan Local Storage Saat Aplikasi Dibuka
+        document.addEventListener("DOMContentLoaded", () => {
+            const savedHp = localStorage.getItem("bangkig_hp");
+            if (savedHp) {
+                // Jika ada data tersimpan, langsung login diam-diam di background
+                db.ref('users/' + savedHp).once('value', (snapshot) => {
+                    if (snapshot.exists()) {
+                        currentUser = snapshot.val();
+                        bukaHalamanUtama();
+                    } else {
+                        // Jika dihapus dari database, bersihkan storage
+                        localStorage.removeItem("bangkig_hp");
+                    }
+                });
+            }
+        });
+
+        // 1. FUNGSI LOGIN / DAFTAR
+        function masukAkun() {
+            const nama = document.getElementById('login-name').value.trim();
+            let hp = document.getElementById('login-phone').value.trim();
+
+            if (!nama || !hp) {
+                alert("Harap isi Nama dan Nomor HP dengan lengkap!");
+                return;
+            }
+
+            // Validasi Nomor HP Warga (+62 dilarang, harus 08)
+            if (hp.startsWith("+62") || hp.startsWith("62")) {
+                alert("Tolong jangan gunakan +62 atau 62. Masukkan nomor mulai dari 08 ya!");
+                return;
+            }
+            if (!hp.startsWith("08")) {
+                alert("Nomor HP harus diawali dengan 08!");
+                return;
+            }
+
+            // Cek ke internet Firebase
+            db.ref('users/' + hp).once('value', (snapshot) => {
+                if (snapshot.exists()) {
+                    currentUser = snapshot.val();
+                    localStorage.setItem("bangkig_hp", currentUser.hp); // SIMPAN KE LOCAL STORAGE
+                    bukaHalamanUtama();
+                } else {
+                    // Daftar Baru Otomatis (Dapat saldo awal simulasi 50k)
+                    const dataBaru = { nama: nama, hp: hp, saldo: 50000 };
+                    db.ref('users/' + hp).set(dataBaru, (error) => {
+                        if (!error) {
+                            currentUser = dataBaru;
+                            localStorage.setItem("bangkig_hp", currentUser.hp); // SIMPAN KE LOCAL STORAGE
+                            alert(`Berhasil Terdaftar! Selamat Datang ${nama}, Anda mendapat Saldo Simulasi Rp 50.000`);
+                            bukaHalamanUtama();
+                        } else {
+                            alert("Koneksi gagal! Periksa internet Anda.");
+                        }
+                    });
+                }
+            });
+        }
+
+        // 2. TAMPILKAN UI M-BANKING & PANTAU REALTIME
+        function bukaHalamanUtama() {
+            document.getElementById('login-page').classList.add('hidden');
+            document.getElementById('main-page').classList.remove('hidden');
+
+            // Pantau saldo realtime (kalau ditransfer orang, layar langsung berubah angkanya)
+            db.ref('users/' + currentUser.hp).on('value', (snapshot) => {
+                if (snapshot.exists()) {
+                    currentUser = snapshot.val();
+                    document.getElementById('user-name').innerText = currentUser.nama;
+                    document.getElementById('user-phone').innerText = currentUser.hp;
+                    document.getElementById('user-saldo').innerText = formatRupiah(currentUser.saldo);
+                }
+            });
+
+            muatHistori();
+        }
+
+        // 3. FUNGSI TOP UP MANDIRI (LIMIT 30K/HARI)
+        function prosesTopUp() {
+            const amount = parseInt(document.getElementById('topup-amount').value);
+            const tgl = getTanggalHariIni();
+
+            if (isNaN(amount) || amount <= 0) return alert("Masukkan angka yang benar!");
+            if (amount > 30000) return alert("Maksimal Top Up sehari hanya Rp 30.000!");
+
+            const limitRef = db.ref(`limits/${currentUser.hp}/${tgl}/topup`);
+            limitRef.once('value', (snapshot) => {
+                let totalHariIni = snapshot.val() || 0;
+                if (totalHariIni + amount > 30000) {
+                    alert(`Gagal! Sisa kuota Top Up Anda hari ini tinggal ${formatRupiah(30000 - totalHariIni)}`);
+                } else {
+                    db.ref(`users/${currentUser.hp}/saldo`).set(currentUser.saldo + amount);
+                    limitRef.set(totalHariIni + amount);
+                    catatHistori(currentUser.nama, "Sistem", amount, "Top Up", "masuk");
+                    
+                    alert(`Berhasil Top Up ${formatRupiah(amount)}!`);
+                    document.getElementById('topup-amount').value = '';
+                }
+            });
+        }
+
+        // 4. FUNGSI TRANSFER UANG ANTAR PONSEL (LIMIT 80K/HARI)
+        function prosesTransfer() {
+            let targetHp = document.getElementById('tf-target').value.trim();
+            const amount = parseInt(document.getElementById('tf-amount').value);
+            const tgl = getTanggalHariIni();
+
+            // Auto-koreksi ringan untuk warga yang bandel ngetik 62
+            if(targetHp.startsWith("62")) targetHp = "0" + targetHp.substring(2);
+            if(targetHp.startsWith("+62")) targetHp = "0" + targetHp.substring(3);
+
+            if (!targetHp || isNaN(amount) || amount <= 0) return alert("Lengkapi data transfer dengan benar!");
+            if (targetHp === currentUser.hp) return alert("Anda tidak bisa transfer ke nomor sendiri!");
+            if (amount > currentUser.saldo) return alert("Saldo Anda tidak mencukupi!");
+            if (amount > 80000) return alert("Batas maksimal transfer sehari Rp 80.000!");
+
+            const limitRef = db.ref(`limits/${currentUser.hp}/${tgl}/transfer`);
+            limitRef.once('value', (snapshot) => {
+                let totalTfHariIni = snapshot.val() || 0;
+                if (totalTfHariIni + amount > 80000) {
+                    return alert(`Transfer ditolak! Sisa limit transfer Anda hari ini: ${formatRupiah(80000 - totalTfHariIni)}`);
+                }
+
+                db.ref('users/' + targetHp).once('value', (targetSnap) => {
+                    if (!targetSnap.exists()) {
+                        alert("Nomor HP tujuan belum terdaftar di aplikasi desa!");
+                    } else {
+                        const targetUser = targetSnap.val();
+                        
+                        // Sistem Potong & Tambah Saldo
+                        db.ref(`users/${currentUser.hp}/saldo`).set(currentUser.saldo - amount);
+                        db.ref(`users/${targetHp}/saldo`).set(targetUser.saldo + amount);
+                        
+                        // Catat Limit & Histori
+                        limitRef.set(totalTfHariIni + amount);
+                        catatHistori(currentUser.nama, targetUser.nama, amount, "Transfer Keluar", "keluar");
+                        catatHistori(targetUser.nama, currentUser.nama, amount, "Transfer Masuk", "masuk"); // Log untuk penerima
+
+                        alert(`Sukses transfer ${formatRupiah(amount)} ke ${targetUser.nama}!`);
+                        document.getElementById('tf-target').value = '';
+                        document.getElementById('tf-amount').value = '';
+                    }
+                });
+            });
+        }
+
+        // 5. FUNGSI CATAT HISTORI KE DATABASE PUSAT
+        function catatHistori(pemilik, terkait, nominal, tipe, jenisAliran) {
+            db.ref('histori').push().set({
+                pemilik: pemilik, 
+                terkait: terkait,
+                nominal: nominal,
+                tipe: tipe,
+                jenis: jenisAliran, // 'masuk' atau 'keluar'
+                waktu: new Date().toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'})
+            });
+        }
+
+        // 6. TAMPILKAN HISTORI SPESIFIK UNTUK USER INI
+        function muatHistori() {
+            db.ref('histori').limitToLast(20).on('value', (snapshot) => {
+                const container = document.getElementById('histori-list');
+                container.innerHTML = '';
+                
+                let listHTML = '';
+                let adaData = false;
+
+                snapshot.forEach((child) => {
+                    const data = child.val();
+                    // Hanya tampilkan histori yang melibatkan akun ini
+                    if(data.pemilik === currentUser.nama) {
+                        adaData = true;
+                        let isMasuk = data.jenis === 'masuk';
+                        let warnaUang = isMasuk ? "text-green-600" : "text-red-600";
+                        let tanda = isMasuk ? "+" : "-";
+                        let ikon = isMasuk 
+                            ? `<div class="bg-green-100 p-2 rounded-full"><svg class="w-3 h-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg></div>`
+                            : `<div class="bg-red-100 p-2 rounded-full"><svg class="w-3 h-3 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg></div>`;
+                        
+                        let textTerkait = isMasuk 
+                            ? (data.tipe === "Top Up" ? "Dari Sistem Top Up" : `Dari ${data.terkait}`)
+                            : `Ke ${data.terkait}`;
+
+                        listHTML = `
+                            <div class="flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-100">
+                                <div class="flex items-center gap-3">
+                                    ${ikon}
+                                    <div>
+                                        <p class="text-xs font-bold text-gray-700">${data.tipe}</p>
+                                        <p class="text-[10px] text-gray-500">${textTerkait} &bull; ${data.waktu}</p>
+                                    </div>
+                                </div>
+                                <span class="font-bold text-sm ${warnaUang}">${tanda}${formatRupiah(data.nominal)}</span>
+                            </div>
+                        ` + listHTML;
+                    }
+                });
+
+                if(!adaData) {
+                    container.innerHTML = '<p class="text-xs text-gray-400 text-center py-6">Belum ada riwayat transaksi.</p>';
+                } else {
+                    container.innerHTML = listHTML;
+                }
+            });
+        }
+
+        // 7. FUNGSI KELUAR / LOGOUT
+        function keluarAkun() {
+            if(confirm("Yakin ingin keluar dari rekening Anda?")) {
+                db.ref('users/' + currentUser.hp).off();
+                localStorage.removeItem("bangkig_hp"); // Hapus Storage
+                currentUser = null;
+                document.getElementById('main-page').classList.add('hidden');
+                document.getElementById('login-page').classList.remove('hidden');
+                document.getElementById('login-name').value = '';
+                document.getElementById('login-phone').value = '';
+            }
+        }
+    </script>
+</body>
+</html>
+
